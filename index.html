@@ -32,13 +32,24 @@
         }
         button {
             margin-top: 10px;
+            margin-right: 10px;
             padding: 10px 20px;
             font-size: 16px;
+        }
+        #fileInput {
+            display: none;
+        }
+        #jsonLink {
+            display: block;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
     <h1>Image Downloader</h1>
+    <a id="jsonLink" href="https://storage.googleapis.com/panels-api/data/20240916/media-1a-i-p~s" target="_blank" download="content.json">Download JSON File</a>
+    <input type="file" id="fileInput" accept=".json">
+    <button id="loadFileBtn">Load JSON File</button>
     <textarea id="jsonInput" placeholder="Paste your JSON data here"></textarea>
     <button id="processBtn">Process JSON</button>
     <button id="downloadBtn" disabled>Download Images</button>
@@ -49,6 +60,8 @@
         const processBtn = document.getElementById('processBtn');
         const imageContainer = document.getElementById('imageContainer');
         const downloadBtn = document.getElementById('downloadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const loadFileBtn = document.getElementById('loadFileBtn');
         let images = [];
 
         function processJSON() {
@@ -104,8 +117,22 @@
             saveAs(content, "images.zip");
         }
 
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    jsonInput.value = e.target.result;
+                    processJSON();
+                };
+                reader.readAsText(file);
+            }
+        }
+
         processBtn.addEventListener('click', processJSON);
         downloadBtn.addEventListener('click', downloadImages);
+        fileInput.addEventListener('change', loadFile);
+        loadFileBtn.addEventListener('click', () => fileInput.click());
     </script>
 </body>
 </html>
