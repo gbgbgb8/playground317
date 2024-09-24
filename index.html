@@ -47,7 +47,8 @@
 </head>
 <body>
     <h1>Image Downloader</h1>
-    <a id="jsonLink" href="https://storage.googleapis.com/panels-api/data/20240916/media-1a-i-p~s" target="_blank" download="content.json">Download JSON File</a>
+    <a id="jsonLink" href="https://storage.googleapis.com/panels-api/data/20240916/media-1a-i-p~s" target="_blank" download="content.json">Download JSON File from URL</a>
+    <button id="downloadLocalJsonBtn">Download Local content.json</button>
     <input type="file" id="fileInput" accept=".json">
     <button id="loadFileBtn">Load JSON File</button>
     <textarea id="jsonInput" placeholder="Paste your JSON data here"></textarea>
@@ -62,6 +63,7 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const fileInput = document.getElementById('fileInput');
         const loadFileBtn = document.getElementById('loadFileBtn');
+        const downloadLocalJsonBtn = document.getElementById('downloadLocalJsonBtn');
         let images = [];
 
         function processJSON() {
@@ -129,10 +131,25 @@
             }
         }
 
+        async function downloadLocalJson() {
+            try {
+                const response = await fetch('content.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const blob = await response.blob();
+                saveAs(blob, "content.json");
+            } catch (error) {
+                console.error('Error downloading content.json:', error);
+                alert('Error downloading content.json. Please check the console for more details.');
+            }
+        }
+
         processBtn.addEventListener('click', processJSON);
         downloadBtn.addEventListener('click', downloadImages);
         fileInput.addEventListener('change', loadFile);
         loadFileBtn.addEventListener('click', () => fileInput.click());
+        downloadLocalJsonBtn.addEventListener('click', downloadLocalJson);
     </script>
 </body>
 </html>
