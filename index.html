@@ -35,6 +35,7 @@
             margin-right: 10px;
             padding: 10px 20px;
             font-size: 16px;
+            cursor: pointer;
         }
         #fileInput {
             display: none;
@@ -43,13 +44,34 @@
             display: block;
             margin-bottom: 10px;
         }
+        #importLocalJsonBtn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        #importLocalJsonBtn:hover {
+            background-color: #45a049;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Image Downloader</h1>
+    <div class="button-container">
+        <button id="importLocalJsonBtn">Import & Process Local content.json</button>
+    </div>
     <a id="jsonLink" href="https://storage.googleapis.com/panels-api/data/20240916/media-1a-i-p~s" target="_blank" download="content.json">Download JSON File from URL</a>
     <button id="downloadLocalJsonBtn">Download Local content.json</button>
-    <button id="importLocalJsonBtn">Import & Process Local content.json</button>
     <input type="file" id="fileInput" accept=".json">
     <button id="loadFileBtn">Load JSON File</button>
     <textarea id="jsonInput" placeholder="Paste your JSON data here"></textarea>
