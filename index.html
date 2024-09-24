@@ -13,6 +13,11 @@
             margin: 0 auto;
             padding: 20px;
         }
+        #jsonInput {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 10px;
+        }
         #imageContainer {
             display: flex;
             flex-wrap: wrap;
@@ -26,7 +31,7 @@
             height: auto;
         }
         button {
-            margin-top: 20px;
+            margin-top: 10px;
             padding: 10px 20px;
             font-size: 16px;
         }
@@ -34,26 +39,28 @@
 </head>
 <body>
     <h1>Image Downloader</h1>
-    <button id="downloadBtn">Download Images</button>
+    <textarea id="jsonInput" placeholder="Paste your JSON data here"></textarea>
+    <button id="processBtn">Process JSON</button>
+    <button id="downloadBtn" disabled>Download Images</button>
     <div id="imageContainer"></div>
 
     <script>
-        const url = 'https://storage.googleapis.com/panels-api/data/20240916/media-1a-i-p~s';
+        const jsonInput = document.getElementById('jsonInput');
+        const processBtn = document.getElementById('processBtn');
         const imageContainer = document.getElementById('imageContainer');
         const downloadBtn = document.getElementById('downloadBtn');
         let images = [];
 
-        async function fetchImages() {
+        function processJSON() {
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch JSON file: ${response.statusText}`);
-                }
-                const jsonData = await response.json();
+                const jsonData = JSON.parse(jsonInput.value);
                 const data = jsonData.data;
                 if (!data) {
                     throw new Error('JSON does not have a "data" property at its root.');
                 }
+
+                images = [];
+                imageContainer.innerHTML = '';
 
                 for (const key in data) {
                     const subproperty = data[key];
@@ -63,8 +70,10 @@
                 }
 
                 displayImages();
+                downloadBtn.disabled = false;
             } catch (error) {
                 console.error(`Error: ${error.message}`);
+                alert(`Error processing JSON: ${error.message}`);
             }
         }
 
@@ -95,9 +104,8 @@
             saveAs(content, "images.zip");
         }
 
+        processBtn.addEventListener('click', processJSON);
         downloadBtn.addEventListener('click', downloadImages);
-
-        fetchImages();
     </script>
 </body>
 </html>
