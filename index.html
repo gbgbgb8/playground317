@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Downloader</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #imageContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .image-wrapper {
+            width: 200px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Downloader</h1>
+    <button id="downloadBtn">Download Images</button>
+    <div id="imageContainer"></div>
+
+    <script>
+        const url = 'https://storage.googleapis.com/panels-api/data/20240916/media-1a-i-p~s';
+        const imageContainer = document.getElementById('imageContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        let images = [];
+
+        async function fetchImages() {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch JSON file: ${response.statusText}`);
+                }
+                const jsonData = await response.json();
+                const data = jsonData.data;
+                if (!data) {
+                    throw new Error('JSON does not have a "data" property at its root.');
+                }
+
+                for (const key in data) {
+                    const subproperty = data[key];
+                    if (subproperty && subproperty.dhd) {
+                        images.push(subproperty.dhd);
+                    }
+                }
+
+                displayImages();
+            } catch (error) {
+                console.error(`Error: ${error.message}`);
+            }
+        }
+
+        function displayImages() {
+            images.forEach((imageUrl, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'image-wrapper';
+                
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = `Image ${index + 1}`;
+                
+                wrapper.appendChild(img);
+                imageContainer.appendChild(wrapper);
+            });
+        }
+
+        async function downloadImages() {
+            const zip = new JSZip();
+            const promises = images.map(async (url, index) => {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                zip.file(`image_${index + 1}.jpg`, blob);
+            });
+
+            await Promise.all(promises);
+            const content = await zip.generateAsync({type: "blob"});
+            saveAs(content, "images.zip");
+        }
+
+        downloadBtn.addEventListener('click', downloadImages);
+
+        fetchImages();
+    </script>
+</body>
+</html>
