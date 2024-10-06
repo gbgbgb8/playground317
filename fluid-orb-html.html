@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Fluid Orb Shader Effect</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .controls {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
+        }
+        .control {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="glCanvas" width="300" height="300"></canvas>
+    <div class="controls">
+        <div class="control">
+            <label for="speed">Speed</label>
+            <input type="range" id="speed" min="0" max="5" step="0.1" value="1">
+        </div>
+        <div class="control">
+            <label for="intensity">Intensity</label>
+            <input type="range" id="intensity" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div class="control">
+            <label for="colorShift">Color Shift</label>
+            <input type="range" id="colorShift" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="control">
+            <label for="scale">Scale</label>
+            <input type="range" id="scale" min="0.1" max="2" step="0.1" value="1">
+        </div>
+        <div class="control">
+            <label for="distortion">Distortion</label>
+            <input type="range" id="distortion" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div class="control">
+            <label for="detail">Detail</label>
+            <input type="range" id="detail" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="control">
+            <label for="hueShift">Hue Shift</label>
+            <input type="range" id="hueShift" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="control">
+            <label for="saturation">Saturation</label>
+            <input type="range" id="saturation" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div class="control">
+            <label for="brightness">Brightness</label>
+            <input type="range" id="brightness" min="0.5" max="1.5" step="0.1" value="1">
+        </div>
+    </div>
+    <div class="buttons">
+        <button id="randomButton">Random</button>
+        <button id="resetButton">Reset</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl');
+
+        if (!gl) {
+            console.error('WebGL not supported');
+            alert('WebGL is not supported in your browser.');
+        }
+
+        const vertexShaderSource = `
+            attribute vec4 a_position;
+            void main() {
+                gl_Position = a_position;
+            }
+        `;
+
+        const fragmentShaderSource = `
+            precision highp float;
+            uniform float u_time;
+            uniform float u_intensity;
+            uniform float u_colorShift;
+            uniform float u_scale;
+            uniform float u_distortion;
+            uniform float u_detail;
+            uniform float u_hueShift;
+            uniform float u_saturation;
+            uniform float u_brightness;
+
+            vec3 rgb2hsv(vec3 c) {
+                vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+                vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+                vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+                float d = q.x - min(q.w, q.y);
+                float e = 1.0e-10;
+                return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+            }
+
+            vec3 hsv2rgb(vec3 c) {
+                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+            }
+
+            vec3 palette(float t) {
+                vec3 a = vec3(0.5, 0.5, 0.5);
+                vec3 b = vec3(0.5, 0.5, 0.5);
+                vec3 c = vec3(1.0, 1.0, 1.0);
+                vec3 d = vec3(0.263, 0.416, 0.557);
+                vec3 color = a + b * cos(6.28318 * (c * t + d + u_colorShift));
+                vec3 hsv = rgb2hsv(color);
+                hsv.x = fract(hsv.x + u_hueShift);
+                hsv.y *= u_saturation;
+                hsv.z *= u_brightness;
+                return hsv2rgb(hsv);
+            }
+
+            mat2 R(float a) {
+                float c = cos(a), s = sin(a);
+                return mat2(c, -s, s, c);
+            }
+
+            float smin(float a, float b, float k) {
+                float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+                return mix(b, a, h) - k * h * (1.0 - h);
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy * 2.0 - vec2(300.0)) / 300.0;
+                vec3 rd = normalize(vec3(uv, 1.0));
+                vec3 ro = vec3(0.0, 0.0, -3.0);
+                
+                float T = u_time * u_intensity;
+                float O = 1.0;
+                float t = 0.0;
+                float d = 0.0;
+                
+                for(int i = 0; i < 50; i++) {
+                    vec3 p = ro + t * rd;
+                    p *= u_scale;
+                    p.z += d = T;
+                    
+                    for(float j = -3.0; j < 3.0; j++) {
+                        vec3 q = p;
+                        q.z = fract(q.z) - 0.5 - j;
+                        float k = floor(p.z) + j;
+                        q.xy *= R(k * 0.75 * u_distortion);
+                        q.x += sin((k - T) * 0.5) * u_distortion;
+                        float a = length(q) - 0.07 * (1.0 - u_detail);
+                        d = min(d, a);
+                        O += 8e-4 * (2.0 + cos(p.z/4.0 + T + u_colorShift + vec4(0,1,2,0)).x) / a;
+                    }
+                    
+                    t += d = smin(d, 1.0 + sin(p.x) * cos(p.y) * cos(p.y + p.z) - length(p.xy), 0.1);
+                    
+                    if(t > 10.0) break;
+                }
+                
+                vec3 col = palette(t * 0.1) / O;
+                col = mix(col, palette(0.5 + sin(t * 0.1) * 0.5), clamp(t * 0.1, 0.0, 1.0));
+                col = pow(col, vec3(0.4545));
+                
+                gl_FragColor = vec4(col, 1.0);
+            }
+        `;
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
+        }
+
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        const positions = [
+            -1, -1,
+             1, -1,
+            -1,  1,
+            -1,  1,
+             1, -1,
+             1,  1,
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+        const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+        gl.enableVertexAttribArray(positionAttributeLocation);
+        gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+        const uniformLocations = {
+            time: gl.getUniformLocation(program, "u_time"),
+            intensity: gl.getUniformLocation(program, "u_intensity"),
+            colorShift: gl.getUniformLocation(program, "u_colorShift"),
+            scale: gl.getUniformLocation(program, "u_scale"),
+            distortion: gl.getUniformLocation(program, "u_distortion"),
+            detail: gl.getUniformLocation(program, "u_detail"),
+            hueShift: gl.getUniformLocation(program, "u_hueShift"),
+            saturation: gl.getUniformLocation(program, "u_saturation"),
+            brightness: gl.getUniformLocation(program, "u_brightness")
+        };
+
+        let time = 0;
+        let params = {
+            speed: 1,
+            intensity: 1,
+            colorShift: 0,
+            scale: 1,
+            distortion: 1,
+            detail: 0.5,
+            hueShift: 0,
+            saturation: 1,
+            brightness: 1
+        };
+
+        function render() {
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            gl.useProgram(program);
+            gl.uniform1f(uniformLocations.time, time);
+            gl.uniform1f(uniformLocations.intensity, params.intensity);
+            gl.uniform1f(uniformLocations.colorShift, params.colorShift);
+            gl.uniform1f(uniformLocations.scale, params.scale);
+            gl.uniform1f(uniformLocations.distortion, params.distortion);
+            gl.uniform1f(uniformLocations.detail, params.detail);
+            gl.uniform1f(uniformLocations.hueShift, params.hueShift);
+            gl.uniform1f(uniformLocations.saturation, params.saturation);
+            gl.uniform1f(uniformLocations.brightness, params.brightness);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            time += 0.01 * params.speed;
+            requestAnimationFrame(render);
+        }
+
+        render();
+
+        function updateSliders() {
+            Object.keys(params).forEach(key => {
+                const slider = document.getElementById(key);
+                if (slider) {
+                    slider.value = params[key];
+                }
+            });
+        }
+
+        // Control event listeners
+        Object.keys(params).forEach(key => {
+            const slider = document.getElementById(key);
+            if (slider) {
+                slider.addEventListener('input', (e) => {
+                    params[key] = parseFloat(e.target.value);
+                });
+            }
+        });
+
+        // Random button
+        document.getElementById('randomButton').addEventListener('click', () => {
+            params.speed = Math.random() * 5;
+            params.intensity = Math.random() * 2;
+            params.colorShift = Math.random();
+            params.scale = 0.1 + Math.random() * 1.9;
+            params.distortion = Math.random() * 2;
+            params.detail = Math.random();
+            params.hueShift = Math.random();
+            params.saturation = Math.random() * 2;
+            params.brightness = 0.5 + Math.random();
+            updateSliders();
+        });
+
+        // Reset button
+        document.getElementById('resetButton').addEventListener('click', () => {
+            params = {
+                speed: 1,
+                intensity: 1,
+                colorShift: 0,
+                scale: 1,
+                distortion: 1,
+                detail: 0.5,
+                hueShift: 0,
+                saturation: 1,
+                brightness: 1
+            };
+            updateSliders();
+        });
+    </script>
+</body>
+</html>
